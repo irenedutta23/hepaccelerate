@@ -1,5 +1,5 @@
 # usr/bin/env python3
-# Run as PYTHONPATH=. python3 examples/simple_hzz.py
+# Run as PYTHONPATH=. python3 examples/atlas_hzz.py
 
 # In case you use CUDA, you may have to find the libnvvm.so on your system manually
 import os, time, glob, argparse, multiprocessing
