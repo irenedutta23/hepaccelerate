@@ -44,6 +44,16 @@ def analyze_data_function(data, parameters):
     lep.attrs_data["mass"] = lep_mass
     mask_events = nplib.ones(lep.numevents(), dtype=nplib.bool)
     
+
+    lep_ele = lep["type"] == 11
+    lep_muon = lep["type"] == 13
+
+
+    ele_Iso = np.logical_and(lep_ele,np.logical_and( lep.lep_ptcone30/lep.pt < 0.15 , lep.lep_etcone20/lep.pt < 0.20))
+    muon_Iso = np.logical_and(lep_muon ,np.logical_and( lep.lep_ptcone30/lep.pt < 0.15 ,lep.lep_etcone20/lep.pt < 0.30))
+    pass_iso = np.logical_or(ele_Iso, muon_Iso)
+    lep.attrs_data["pass_iso"] = pass_iso
+
     num_lep_event = kernels.sum_in_offsets(
         backend,
         lep.offsets,
@@ -53,9 +63,9 @@ def analyze_data_function(data, parameters):
         nplib.int8,
     )
     mask_events_4lep = num_lep_event == 4
-    lep_attrs = [ "pt", "eta", "phi", "charge","type","mass"]#, "ptcone30", "etcone20"]
+
+    lep_attrs = [ "pt", "eta", "phi", "charge","type","mass", "pass_iso"]#, "ptcone30", "etcone20"]
     
-    #ximport pdb; pdb.set_trace();
     lep0 = lep.select_nth(0, mask_events_4lep, lep.masks["all"], attributes=lep_attrs)
     lep1 = lep.select_nth(1, mask_events_4lep, lep.masks["all"], attributes=lep_attrs)
     lep2 = lep.select_nth(2, mask_events_4lep, lep.masks["all"], attributes=lep_attrs)
@@ -63,9 +73,10 @@ def analyze_data_function(data, parameters):
     
     mask_event_sumchg_zero = (lep0["charge"]+lep1["charge"]+lep2["charge"]+lep3["charge"] == 0) 
     sum_lep_type = lep0["type"]+lep1["type"]+lep2["type"]+lep3["type"] 
+    all_pass_iso = (lep0["pass_iso"] & lep1["pass_iso"] & lep2["pass_iso"] & lep3["pass_iso"])
     
     mask_event_sum_lep_type = np.logical_or((sum_lep_type == 44),np.logical_or((sum_lep_type == 48),(sum_lep_type == 52) ) )
-    mask_events = mask_events & mask_event_sumchg_zero & mask_events_4lep & mask_event_sum_lep_type
+    mask_events = mask_events & mask_event_sumchg_zero & mask_events_4lep & mask_event_sum_lep_type & all_pass_iso
     
 
     mask_lep1_passing_pt = lep1["pt"] > parameters["leading_lep_ptcut"]
@@ -93,7 +104,7 @@ def analyze_data_function(data, parameters):
         info = infofile.infos[parameters["sample"]]
         weights *= (lumi*1000*info["xsec"])/(info["sumw"]*info["red_eff"])
     
-    bins = nplib.linspace(110, 150, 21, dtype=nplib.float32)
+    bins = nplib.linspace(110, 150, 11, dtype=nplib.float32)
     hist_m4lep= Histogram(
         *kernels.histogram_from_vector(
             backend,
@@ -208,7 +219,7 @@ def make_plot(datasets):
     #ts = a2.set_yticks(np.arange(0,2,0.2), minor=True)
     #ts = a2.set_xticklabels([])
 
-    a1.text(0.03,0.95, "Atlas Open Data \n" +
+    a1.text(0.03,0.95, "Atlas Open Data @ 13 TeV \n" +
         r"$L = {0:.1f}\ fb^{{-1}}$".format(lumi),
         #"\nd/mc={0:.2f}".format(np.sum(hd["contents"])/np.sum(htot_nominal["contents"])) +
         #"\nwd={0:.2E}".format(wasserstein_distance(htot_nominal["contents"]/np.sum(htot_nominal["contents"]), hd["contents"]/np.sum(hd["contents"]))),
@@ -252,14 +263,21 @@ colors = {
     "Zmumu": (109, 253, 245),
     "ttbar_lep": (67, 150, 42),
     "llll": (247, 206, 205),
-    "ggH125_ZZ4lep": (0, 0, 0),
-    "VBFH125_ZZ4lep": (0, 0, 0),
-    "WH125_ZZ4lep": (0, 0, 0),
-    "ZH125_ZZ4lep": (0, 0, 0),
+    "ggH125_ZZ4lep": (0, 100, 150),
+    "VBFH125_ZZ4lep": (0, 100, 150),
+    "WH125_ZZ4lep": (0, 100, 150),
+    "ZH125_ZZ4lep": (0, 100, 150),
 }
 
 nice_names = {
-    "Zee": r"$Z \rightarrow ee$"
+    "Zee": r"$Z \rightarrow ee$",
+    "Zmumu": r"$Z \rightarrow \mu\mu$",
+    "ttbar_lep": r"$t\bar{t}$",
+    "llll": r"$ZZ \rightarrow 4l$",
+    "ggH125_ZZ4lep":r"$H \rightarrow ZZ \rightarrow 4l$",
+    "VBFH125_ZZ4lep":"",# r"$VBF$",
+    "WH125_ZZ4lep": "",#r"$WH$",
+    "ZH125_ZZ4lep": "",#r"$ZH$"
 }
 
 if __name__ == "__main__":
